@@ -1,0 +1,112 @@
+
+
+```python
+import hashlib
+import itertools
+import string
+import multiprocessing
+```
+- **`import hashlib`**: This module provides functions for hashing passwords (e.g., MD5, SHA1, SHA256).
+- **`import itertools`**: This module helps create iterators for efficient looping, in this case, to generate combinations of password characters.
+- **`import string`**: Provides predefined string constants like `ascii_letters`, `digits`, and `punctuation` for generating possible password characters.
+- **`import multiprocessing`**: This module allows the program to use multiple CPU cores to parallelize the task, speeding up the brute-force process.
+
+---
+
+```python
+def hash_password(password, hash_type):
+    if hash_type == "md5":
+        return hashlib.md5(password.encode()).hexdigest()
+    elif hash_type == "sha1":
+        return hashlib.sha1(password.encode()).hexdigest()
+    elif hash_type == "sha256":
+        return hashlib.sha256(password.encode()).hexdigest()
+    else:
+        raise ValueError("Unsupported hash type")
+```
+- **`def hash_password(password, hash_type):`**: This function takes a password string and its hash type (MD5, SHA1, or SHA256), hashes the password, and returns the hashed value.
+- **`if hash_type == "md5":`**: Checks if the hash type is MD5. If true, it hashes the password using MD5.
+- **`hashlib.md5(password.encode()).hexdigest()`**: Encodes the password to bytes and calculates its MD5 hash, then converts the hash to a hexadecimal string.
+- **`elif hash_type == "sha1":`**: Checks if the hash type is SHA1, and hashes the password similarly using the SHA1 algorithm.
+- **`elif hash_type == "sha256":`**: If the hash type is SHA256, it hashes the password using the SHA256 algorithm.
+- **`else:`**: If the hash type is not supported, raises an error.
+
+---
+
+```python
+def crack_password_segment(start, end, chars, hash_value, hash_type):
+    for length in range(1, 9):  # Iterate from 1 to max length of 8
+        for password in itertools.product(chars, repeat=length):
+            password_str = "".join(password)
+            if hash_password(password_str, hash_type) == hash_value:
+                return password_str
+    return None
+```
+- **`def crack_password_segment(start, end, chars, hash_value, hash_type):`**: This function is a segment of the brute-force password cracker, which generates possible passwords of varying lengths (from 1 to 8), hashes them, and compares them to the target hash.
+- **`for length in range(1, 9):`**: Loops through possible password lengths from 1 to 8.
+- **`for password in itertools.product(chars, repeat=length):`**: This generates all possible combinations of characters of the given `length`. `itertools.product` is used to generate combinations where each position in the password can be any character from the `chars` set, and `repeat=length` ensures the correct password length.
+- **`password_str = "".join(password)`**: Joins the generated characters into a string.
+- **`if hash_password(password_str, hash_type) == hash_value:`**: Hashes the password string and checks if it matches the target hash (`hash_value`). If a match is found, it returns the correct password (`password_str`).
+- **`return None`**: If no password matches, it returns `None`.
+
+---
+
+```python
+def crack_password(hash_value, hash_type):
+    chars = string.ascii_letters + string.digits + string.punctuation  # Expanded character set
+    pool_size = multiprocessing.cpu_count()  # Use multiple CPU cores
+```
+- **`def crack_password(hash_value, hash_type):`**: This is the main function that coordinates the brute-force attack. It calls the segment cracker and handles parallelization.
+- **`chars = string.ascii_letters + string.digits + string.punctuation`**: Defines the set of characters to use for brute-forcing the password. This includes all uppercase letters (`A-Z`), lowercase letters (`a-z`), digits (`0-9`), and punctuation symbols (e.g., `!@#$%^&*`).
+- **`pool_size = multiprocessing.cpu_count()`**: Determines how many CPU cores are available on the machine. This will be used to split the work across multiple processes to improve speed.
+
+---
+
+```python
+    pool = multiprocessing.Pool(pool_size)
+    result = pool.starmap(crack_password_segment, [(start, end, chars, hash_value, hash_type) for start, end in zip(range(0, pool_size), range(1, pool_size + 1))])
+```
+- **`pool = multiprocessing.Pool(pool_size)`**: Creates a pool of worker processes. The number of processes is determined by `pool_size`, which is the number of CPU cores.
+- **`result = pool.starmap(...)`**: The `starmap` function is used to apply the `crack_password_segment` function to multiple arguments in parallel. It takes a list of arguments (pairs of `start` and `end` ranges) and applies the function across multiple processes. `zip(range(0, pool_size), range(1, pool_size + 1))` generates start and end points for dividing the password-cracking task across processes. This means each process handles a segment of the password space.
+
+---
+
+```python
+    for res in result:
+        if res:
+            return res
+    return None
+```
+- **`for res in result:`**: Iterates over the results returned by each process in the pool.
+- **`if res:`**: If a process returns a valid password (i.e., not `None`), it is returned as the cracked password.
+- **`return None`**: If none of the processes found a matching password, return `None`.
+
+---
+
+```python
+hash_value = "5f4dcc3b5aa765d61d8327deb882cf99"  # Hash value of the password (example: 'password' in MD5)
+hash_type = "md5"  # Hash type used for the password
+```
+- **`hash_value = "5f4dcc3b5aa765d61d8327deb882cf99"`**: The target hash value that we want to crack. This is the MD5 hash of the word `"password"`.
+- **`hash_type = "md5"`**: Specifies the hash type used for the target hash value.
+
+---
+
+```python
+password = crack_password(hash_value, hash_type)
+if password:
+    print(f"Password found: {password}")
+else:
+    print("Password not found")
+```
+- **`password = crack_password(hash_value, hash_type)`**: Calls the `crack_password` function to try and find the password corresponding to the provided hash value and hash type.
+- **`if password:`**: If the function returns a valid password, it prints the found password.
+- **`else:`**: If the function returns `None`, it prints that no password was found.
+
+---
+
+### Summary:
+- **Parallelization**: The code divides the brute-force search into segments and uses multiple CPU cores to crack the password in parallel, significantly speeding up the process.
+- **Customizable hash type**: The code supports different hash types like MD5, SHA1, and SHA256.
+- **Expanded character set**: The code can handle alphanumeric characters and symbols.
+- **Brute-force approach**: This is still a brute-force attack, meaning it tries all combinations, which can take a long time depending on password complexity and length.
